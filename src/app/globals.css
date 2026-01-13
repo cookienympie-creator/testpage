@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  background-color: #120611 !important;
+}
+
+.gra {
+  width: 100%;
+  background: linear-gradient(to right, #00cc33 15%,  black 30%);
+  background-color: #120611 !important;
+}
+
+.gradient-text2 {
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -moz-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(90.58deg, #6000b1 -12.17%, #fc57ff -12.16%, #7f75f7 110.37%);
+}
+
+.gradient-text {
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -moz-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(90deg, #ecffee 0%, #aaffb7 50.5%, #e3f6ff 100%);
+}
+
+.border-secondaryDark {
+  --tw-border-opacity: 1;
+  border-color: rgb(28 29 34 / var(--tw-border-opacity, 1));
+}
+
+::-webkit-scrollbar{
+  display: none;
+}
+
+.bgi {
+  background: url("https://autosnipe.ai/_app/immutable/assets/gridBgWallet.Cpmn7lWM.svg"), #0c0d0f;
+}

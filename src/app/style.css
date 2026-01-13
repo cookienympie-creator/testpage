@@ -1,0 +1,39 @@
+/* src/app/style.css */
+.token-parent {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 20px;
+  padding: 20px;
+}
+
+.token-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.token-topbar-left-cont, .token-topbar-right-cont {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.search-bar-inline {
+  background: #333;
+  border: 1px solid #444;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: white;
+}
+
+.token-list-table {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  color: #888;
+  font-weight: bold;
+}

@@ -1,0 +1,350 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import WalletModal from '@/components/connectModal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Custom CSS for Toastify and layout
+const customToastStyles = `
+.custom-toast-container {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+}
+
+@media (max-width: 768px) {
+  .custom-toast-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+.custom-toast-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.shadow-purple {
+  box-shadow: 0 4px 12px rgba(54, 1, 63, 0.3) !important;
+}
+
+.shadow-purple-lg {
+  box-shadow: 0 8px 25px rgba(54, 1, 63, 0.4) !important;
+}
+
+.buy-button {
+  background-color: #36013F !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(54, 1, 63, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.buy-button:hover {
+  background-color: #4a0157 !important;
+  box-shadow: 0 6px 20px rgba(54, 1, 63, 0.5) !important;
+  transform: translateY(-2px) !important;
+}
+
+.buy-button:active {
+  transform: translateY(0) !important;
+}
+
+.main-container {
+  box-shadow: 0 8px 32px rgba(54, 1, 63, 0.2) !important;
+  border: 1px solid rgba(54, 1, 63, 0.1) !important;
+}
+
+.coin-card {
+  box-shadow: 0 2px 8px rgba(54, 1, 63, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+
+.coin-card:hover {
+  box-shadow: 0 4px 16px rgba(54, 1, 63, 0.25) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Scroll arrows */
+.scroll-container {
+  position: relative;
+}
+
+.scroll-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(54,1,63,0.8);
+  color: white;
+  border: none;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  z-index: 10;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.scroll-arrow-left {
+  left: -1.5rem;
+}
+
+.scroll-arrow-right {
+  right: -1.5rem;
+}
+
+/* Force visible horizontal scrollbar with custom styling */
+.scroll-wrapper::-webkit-scrollbar {
+  height: 8px; /* horizontal scrollbar height */
+}
+
+.scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: rgba(54, 1, 63, 0.8); /* dark purple thumb */
+  border-radius: 4px;
+}
+
+.scroll-wrapper::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.2); /* track background */
+  border-radius: 4px;
+}
+
+/* Firefox */
+.scroll-wrapper {
+  scrollbar-width: thin; /* makes it thin */
+  scrollbar-color: rgba(54,1,63,0.8) rgba(0,0,0,0.2); /* thumb track */
+}
+
+`;
+
+// Inject custom styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = customToastStyles;
+  document.head.appendChild(styleSheet);
+}
+
+export default function TokenTable() {
+  const [coins, setCoins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [connectedWallet, setConnectedWallet] = useState(null);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const coinsPerPage = 10;
+  const intervalRef = useRef(null);
+  const tableRef = useRef(null);
+
+  // Fetch data
+  const fetchMemeCoins = async () => {
+    try {
+      console.log('Fetching fresh data...');
+      const response = await fetch("/api/meme-coins?t=" + Date.now());
+      const data = await response.json();
+      if (data.data && data.data.length > 0) {
+        setCoins(data.data);
+        setLastUpdate(new Date());
+        setLoading(false);
+        setError(null);
+        console.log(`Loaded ${data.data.length} coins from API`);
+      } else throw new Error('No data received');
+    } catch (err) {
+      console.error('Error fetching coins:', err);
+      setError('Failed to fetch data');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMemeCoins();
+    if (autoRefresh) intervalRef.current = setInterval(fetchMemeCoins, 2000);
+    const walletData = localStorage.getItem('walletData');
+    if (walletData) {
+      const { name, address } = JSON.parse(walletData);
+      setConnectedWallet(name);
+      setWalletAddress(address);
+    }
+    return () => intervalRef.current && clearInterval(intervalRef.current);
+  }, [autoRefresh]);
+
+  const scrollTable = (direction) => {
+    if (!tableRef.current) return;
+    const scrollAmount = 300;
+    tableRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    console.log(`Scrolled ${direction}`);
+  };
+
+  // Filter & Pagination
+  const filteredCoins = coins.filter(coin => coin.pairData && (
+    coin.pairData.baseToken.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    coin.pairData.baseToken.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+  ));
+  const indexOfLastCoin = currentPage * coinsPerPage;
+  const indexOfFirstCoin = indexOfLastCoin - coinsPerPage;
+  const currentCoins = filteredCoins.slice(indexOfFirstCoin, indexOfLastCoin);
+  const totalPages = Math.ceil(filteredCoins.length / coinsPerPage);
+  const paginate = (page) => setCurrentPage(page);
+
+  const formatPercentage = (num) => (num === undefined || num === null) ? '0.00' : Math.abs(num).toFixed(2);
+  const formatPrice = (price) => {
+    if (price === undefined || price === null) return '0.000000';
+    if (price < 0.0001) return price.toFixed(8);
+    if (price < 1) return price.toFixed(6);
+    return price.toFixed(4);
+  };
+  const formatTime = (date) => date ? date.toLocaleTimeString() : 'Never';
+
+  const closeWalletModal = () => setIsWalletModalOpen(false);
+
+  if (loading) return (
+    <div className="w-full h-64 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      <span className="ml-4 text-white">Loading live meme coins...</span>
+    </div>
+  );
+
+  return (
+    <div className="container max-[500px]:w-[430px] mx-auto w-full py-8 px-4 main-container shadow-purple-lg">
+      <ToastContainer 
+        toastClassName="custom-toast-container"
+        bodyClassName="custom-toast-body"
+        position="bottom-right"
+        autoClose={1000}
+        hideProgressBar
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+
+      {/* Status Bar & Search filters remain untouched */}
+
+      {/* === Coin Table with Scroll Arrows === */}
+      <div className="scroll-container relative mt-6">
+        <button className="scroll-arrow scroll-arrow-left" onClick={() => scrollTable('left')}>◀</button>
+        <div className="scroll-wrapper" ref={tableRef}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <th className="px-4 py-2">#</th>
+                <th className="px-4 py-2">Coin</th>
+                <th className="px-4 py-2">Price (USD)</th>
+                <th className="px-4 py-2">24h Change</th>
+                <th className="px-4 py-2">Liquidity (USD)</th>
+                <th className="px-4 py-2">Volume (24h)</th>
+                <th className="px-4 py-2">Links</th>
+                <th className="px-4 py-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentCoins.map((item, idx) => {
+                const pair = item.pairData;
+                if (!pair) return null;
+                return (
+                  <tr key={idx} className="text-center hover:bg-gray-800 transition-colors coin-card">
+                    <td className="px-4 py-2 text-gray-400">{indexOfFirstCoin + idx + 1}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-3">
+                        {pair.info?.imageUrl && (
+                          <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden">
+                            <img
+                              src={pair.info.imageUrl}
+                              alt={pair.baseToken.name}
+                              width={40}
+                              height={40}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.onerror = null; e.target.src = '/placeholder.svg'; }}
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium text-white">{pair.baseToken.name}</div>
+                          <div className="text-gray-400 text-xs">{pair.baseToken.symbol}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-white">${formatPrice(pair.priceUsd)}</td>
+                    <td className={`px-4 py-2 ${pair.priceChange.h24 > 0 ? "text-green-500" : "text-red-500"}`}>
+                      {pair.priceChange.h24 > 0 ? '+' : ''}{formatPercentage(pair.priceChange.h24)}%
+                    </td>
+                    <td className="px-4 py-2 text-white">${pair.liquidity.usd.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-white">${pair.volume.h24.toLocaleString()}</td>
+                    <td className="px-4 py-2 space-x-2">
+                      <a href={pair.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    </td>
+                    <td className="px-4 py-2">
+                      <button className="buy-button font-medium text-xs px-3 py-1 rounded">Buy</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button className="scroll-arrow scroll-arrow-right" onClick={() => scrollTable('right')}>▶</button>
+{/* Bottom-left chevron icon */}
+<div className="absolute bottom-2 left-2">
+  <Image 
+    src="public/chevron-right.png" 
+    alt="Scroll Icon" 
+    width={28} 
+    height={28} 
+    className="opacity-70 hover:opacity-100 cursor-pointer"
+  />
+</div>
+
+        {/* Pagination remains untouched */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-6">
+            <nav className="flex items-center gap-2">
+              <button onClick={() => paginate(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 rounded-lg bg-gray-800 text-white disabled:opacity-50 hover:bg-gray-700 shadow-purple">
+                Prev
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) pageNum = i + 1;
+                else if (currentPage <= 3) pageNum = i + 1;
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else pageNum = currentPage - 2 + i;
+                return (
+                  <button key={pageNum} onClick={() => paginate(pageNum)}
+                          className={`px-4 py-2 rounded-lg shadow-purple ${
+                            currentPage === pageNum ? 'bg-green-500 text-white' : 'bg-gray-800 text-white hover:bg-gray-700'
+                          }`}>
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 rounded-lg bg-gray-800 text-white disabled:opacity-50 hover:bg-gray-700 shadow-purple">
+                Next
+              </button>
+            </nav>
+          </div>
+        )}
+      </div>
+
+      <WalletModal 
+        isOpen={isWalletModalOpen} 
+        onClose={closeWalletModal}
+        onWalletConnected={(wallet) => {
+          setConnectedWallet(wallet.name);
+          setWalletAddress(wallet.address);
+          setIsWalletModalOpen(false);
+          toast.success(`Connected to ${wallet.name} successfully!`);
+        }}
+      />
+    </div>
+  );
+}
